@@ -94,6 +94,26 @@ cd SVF
 macOS 可先用 Homebrew 安裝 `cmake`、`node`，並確認 Xcode Command Line Tools 已安裝；
 其他平台的系統套件需求請見 [SVF Setup Guide](https://github.com/SVF-tools/SVF/wiki/Setup-Guide)。
 
+**Ubuntu / Jetson：先檢查 CMake 版本。** 若 `cmake --version` 顯示 3.22.1 等低於
+3.23 的版本，建置會停在 `cmake_minimum_required`。可以用獨立的 Python 環境安裝
+CMake 3.31.10；[此版本提供 Linux ARM64 與 x86-64 預編譯套件](https://pypi.org/project/cmake/3.31.10/#files)，
+不需要替換系統的 `/usr/bin/cmake`：
+
+```bash
+sudo apt update
+sudo apt install -y python3-venv
+python3 -m venv "$HOME/.venvs/svf-tools"
+source "$HOME/.venvs/svf-tools/bin/activate"
+python -m pip install --only-binary=:all: cmake==3.31.10
+hash -r
+cmake --version
+```
+
+確認最後顯示 `cmake version 3.31.10`，再執行下方建置步驟。
+若 Jetson 記憶體有限，可先執行 `export SVF_BUILD_JOBS=2`，把預設的 8 個平行
+編譯工作降為 2 個。重新開啟終端後，若要再次編譯，需先執行
+`source "$HOME/.venvs/svf-tools/bin/activate"`，讓目前 shell 使用這份 CMake。
+
 使用倉庫原有的建置腳本。先切換到 Bash，讓後面的 `source` 使用 Bash 語法：
 
 ```bash
@@ -104,6 +124,9 @@ source ./build.sh
 第一次會準備相依套件並編譯 SVF。這份倉庫的建置腳本目前預設使用 LLVM 21；
 若你已設定 `LLVM_DIR` 或 `Z3_DIR`，建置腳本會使用指定的安裝位置。
 `source ./build.sh` 完成後會設定目前 shell 的 LLVM 與 SVF 環境。
+若已經下載並解壓 LLVM、Z3，卻因 CMake 版本不足而中止，完成上述 CMake 安裝後
+直接重跑 `source ./build.sh` 即可；腳本會沿用倉庫內的 `llvm-21.1.0.obj` 和
+`z3.obj`，不必重新 clone 或刪掉這兩個目錄。
 
 若已經建置好，在新的 Bash 終端工作階段只需要：
 
