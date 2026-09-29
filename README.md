@@ -59,3 +59,171 @@ SVF provides reusable abstractions, graphs, and solvers for analyzing LLVM IR.
 * [Graphs](https://github.com/SVF-tools/SVF/tree/master/svf/include/Graphs): <b> generating a variety of graphs</b>, including call graph, ICFG, class hierarchy graph, constraint graph, value-flow graph for static analyses and code embedding ([OOPSLA'20](https://dl.acm.org/doi/10.1145/3428301), [TOSEM'21](https://dl.acm.org/doi/10.1145/3436877))
 
 <p>We release the SVF source code with the hope of benefiting the open-source community. If you find SVF helpful, please kindly acknowledge the use of the tool or the relevant publications above. </p>
+
+<a id="c-to-pag-svg"></a>
+
+## C → PAG SVG：指定自己的 C 檔，一步一步產圖
+
+本節提供可重複使用的 [PAG 腳本](tools/pag-svg/pag.sh)。指定一份 C 程式，
+腳本會產生相對應的 LLVM IR、PAG 的 DOT，以及可用瀏覽器開啟的 SVG。
+換另一份 C 檔時，只需要換輸入路徑。
+
+```text
+your-program.c
+  → Clang：input.raw.ll
+  → opt / mem2reg：input.ll
+  → WPA / -dump-pag：pag.dot
+  → Graphviz：pag.svg
+```
+
+WPA 是 SVF 的分析工具，負責輸出圖的節點與邊；Graphviz 負責把 DOT 排版成 SVG。
+此處使用固定版本的 `@viz-js/viz`（Graphviz WebAssembly），不需要另外安裝 `dot`。
+
+### 1. Clone 倉庫
+
+```bash
+git clone https://github.com/haohao-brian/SVF.git
+cd SVF
+```
+
+後續指令都在這個新下載的 `SVF` 資料夾中執行。
+
+### 2. 準備工具並建置 WPA
+
+需要 Git、Bash、CMake 3.23 以上、C/C++ 建置工具，以及 Node.js 22 以上和 npm。
+macOS 可先用 Homebrew 安裝 `cmake`、`node`，並確認 Xcode Command Line Tools 已安裝；
+其他平台的系統套件需求請見 [SVF Setup Guide](https://github.com/SVF-tools/SVF/wiki/Setup-Guide)。
+
+使用倉庫原有的建置腳本。先切換到 Bash，讓後面的 `source` 使用 Bash 語法：
+
+```bash
+bash
+source ./build.sh
+```
+
+第一次會準備相依套件並編譯 SVF。這份倉庫的建置腳本目前預設使用 LLVM 21；
+若你已設定 `LLVM_DIR` 或 `Z3_DIR`，建置腳本會使用指定的安裝位置。
+`source ./build.sh` 完成後會設定目前 shell 的 LLVM 與 SVF 環境。
+
+若已經建置好，在新的 Bash 終端工作階段只需要：
+
+```bash
+source ./setup.sh
+```
+
+自訂安裝的使用者應先把 `LLVM_DIR` 設為建置這份 WPA 時所用的 LLVM 安裝根目錄。
+**Clang、opt 與 WPA 必須搭配相容的 LLVM 版本**，不要把系統 Apple Clang 產生的 IR
+直接混用到另一版本的 WPA。
+
+### 3. 安裝 SVG 排版套件
+
+```bash
+npm ci --prefix tools/pag-svg --ignore-scripts
+```
+
+這會依照 `tools/pag-svg/package-lock.json` 安裝繪圖套件，無須在倉庫根目錄執行 npm install。
+
+### 4. 用隨附範例產生 PAG
+
+```bash
+bash tools/pag-svg/pag.sh tools/pag-svg/examples/swap.c
+```
+
+腳本會顯示編譯、分析、轉圖三個階段，成功後印出 SVG 與 IR 的完整位置。
+這份範例的結果位於：
+
+```text
+tools/pag-svg/examples/swap-pag/pag.svg
+```
+
+在 macOS 開啟：
+
+```bash
+open tools/pag-svg/examples/swap-pag/pag.svg
+```
+
+在有桌面環境的 Linux 開啟：
+
+```bash
+xdg-open tools/pag-svg/examples/swap-pag/pag.svg
+```
+
+也可以直接把 SVG 拖進瀏覽器。伺服器上產生的 SVG 可以複製到自己的電腦閱讀。
+
+### 5. 換成自己的 C 程式
+
+將範例路徑換成你的實際檔案路徑即可。假設你的桌面有 `example.c`：
+
+```bash
+bash tools/pag-svg/pag.sh "$HOME/Desktop/example.c"
+```
+
+輸出預設在原始檔旁的 `example-pag/`，圖就是 `example-pag/pag.svg`。
+路徑有空白時請保留引號。
+
+也可以用第二個參數指定輸出位置：
+
+```bash
+bash tools/pag-svg/pag.sh "$HOME/Desktop/example.c" ./my-pag
+```
+
+需要 include 搜尋路徑或巨集定義時，把 Clang 參數放在 `--` 後面：
+
+```bash
+bash tools/pag-svg/pag.sh "$HOME/Desktop/example.c" ./my-pag -- -I./include -DMODE=1
+```
+
+### 6. 對照這次產生的原始碼、IR 和圖
+
+| 檔案 | 意義 |
+| --- | --- |
+| `source.c` | 本次分析的 C 原始碼副本 |
+| `source-path.txt` | 輸入檔案的原始位置 |
+| `input.raw.ll` | Clang 輸出的文字 LLVM IR |
+| `input.ll` | 經過 mem2reg、實際交給 WPA 分析的 IR |
+| `pag.dot` | WPA 輸出的 PAG；原始輸出檔名為 `svfir_initial.dot` |
+| `pag.svg` | 排版後可以閱讀的 PAG |
+| `analysis.log` | WPA 的分析紀錄 |
+| `toolchain.txt` | 本次使用的工具位置與 Clang / opt 版本 |
+
+讀圖時，請搭配**同一輸出資料夾**的 `source.c` 和 `input.ll`。
+兩個都叫 `swap.c` 的檔案不一定是同一份程式；更換程式或 LLVM / SVF 版本後，
+節點編號、IR 名稱和圖形也可能改變。
+
+隨附範例在交換指標後，會用 `(*a == 'B' && *b == 'A')` 檢查結果。
+若你分析的程式只有 `return 0`，就不會有這段條件判斷產生的區塊。
+圖上 `f` 表示所屬函式、`bb` 表示基本區塊；`line` 是除錯資訊中的原始碼行號，
+不是區塊裡第幾條指令。`line: 0` 表示該位置沒有指定具體原始碼行號。
+
+成功重跑時會更新輸出檔案。每次分析都使用新的暫存工作資料夾，以免拿舊 DOT 當新結果；
+如果中途失敗，既有輸出仍是前一次成功的結果，請先處理終端顯示的錯誤。
+
+### 自訂工具位置與適用範圍
+
+通常在建置後 `source ./setup.sh` 即可。已有其他建置時，可以明確指定工具：
+
+```bash
+LLVM_BIN=/path/to/matching-llvm/bin \
+WPA=/path/to/matching-svf/bin/wpa \
+NODE=/path/to/node \
+EXTAPI=/path/to/matching-svf/lib/extapi.bc \
+bash tools/pag-svg/pag.sh /path/to/program.c /path/to/output
+```
+
+上述 `/path/to/...` 請替換為自己的實際路徑。`LLVM_BIN` 優先於 `LLVM_DIR/bin`；
+兩者皆未設定時使用 PATH 中的 Clang / opt。`WPA` 未設定時，會尋找本倉庫的
+`Release-build/bin/wpa`、`build/bin/wpa`、`Debug-build/bin/wpa`，再尋找 PATH。
+`NODE` 未設定時使用 PATH 中的 `node`。
+腳本也會尋找 WPA 執行檔旁 `../lib/extapi.bc` 的外部函式模型；若使用 wrapper 或自訂
+安裝位置，可以用 `EXTAPI` 指定**同一份 SVF 建置**產生的 `extapi.bc`。
+找不到時，WPA 仍會使用自己的標準搜尋規則。
+
+本腳本適合可獨立編譯的**單一 C translation unit**，不會執行 C 程式本身。
+多檔案專案需額外整合建置設定與 LLVM IR；外部函式的實作也需要提供給分析工具。
+本教學輸出一般 PAG，並未執行 TZ-DATASHIELD 的敏感資料標註、切片或 compartment 分組。
+
+查看完整參數：
+
+```bash
+bash tools/pag-svg/pag.sh --help
+```

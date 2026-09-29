@@ -1,0 +1,9 @@
+{
+  "name": "svf-pag-svg",
+  "private": true,
+  "type": "module",
+  "description": "Render WPA PAG output as SVG",
+  "dependencies": {
+    "@viz-js/viz": "3.31.0"
+  }
+}
