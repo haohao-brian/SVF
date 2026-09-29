@@ -140,9 +140,29 @@ source ./setup.sh
 
 ### 3. 安裝 SVG 排版套件
 
+先執行 `node --version` 和 `npm --version`。若 Ubuntu / Jetson 顯示
+`npm: command not found`，或 Node.js 低於 22，可用
+[nvm 的安裝方式](https://github.com/nvm-sh/nvm#installing-and-updating)
+安裝 Node.js 22 與隨附的 npm。在 Bash 中依序執行：
+
+```bash
+export NVM_DIR="$HOME/.nvm"
+curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | bash
+source "$NVM_DIR/nvm.sh"
+nvm install 22
+nvm alias default 22
+node --version
+npm --version
+```
+
+確認 Node.js 顯示 `v22.x.x`、npm 也印出版本後，回到倉庫安裝排版套件：
+
 ```bash
 npm ci --prefix tools/pag-svg --ignore-scripts
 ```
+
+補裝 Node.js / npm 不需要重新編譯已完成的 WPA。若新終端找不到 npm，可先執行
+`source "$HOME/.nvm/nvm.sh"` 和 `nvm use 22`。
 
 這會依照 `tools/pag-svg/package-lock.json` 安裝繪圖套件，無須在倉庫根目錄執行 npm install。
 
